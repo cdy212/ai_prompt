@@ -1,0 +1,1170 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prompt Pipeline Demo</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #f5f4f0;
+            color: #1a1a18;
+            min-height: 100vh;
+        }
+
+        .app {
+            max-width: 860px;
+            margin: 0 auto;
+            padding: 24px 16px;
+        }
+
+        h1 {
+            font-size: 18px;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+
+        .subtitle {
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 24px;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 2px;
+            background: #e5e4e0;
+            border-radius: 10px;
+            padding: 3px;
+            margin-bottom: 24px;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 8px;
+            border: none;
+            background: none;
+            border-radius: 8px;
+            font-size: 13px;
+            cursor: pointer;
+            color: #666;
+            transition: all .15s;
+        }
+
+        .tab.active {
+            background: #fff;
+            color: #1a1a18;
+            font-weight: 500;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, .08);
+        }
+
+        /* Pipeline steps */
+        .pipeline {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            margin-bottom: 20px;
+            overflow-x: auto;
+            padding-bottom: 4px;
+        }
+
+        .step {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            flex-shrink: 0;
+        }
+
+        .step-box {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+            border: 1.5px solid transparent;
+            transition: all .2s;
+        }
+
+        .step-box.idle {
+            background: #f0efe8;
+            color: #888;
+            border-color: #e0dfd8;
+        }
+
+        .step-box.active {
+            background: #e8f4ff;
+            color: #1560a0;
+            border-color: #90c0f0;
+        }
+
+        .step-box.done {
+            background: #e8f7ee;
+            color: #1a6e3c;
+            border-color: #80d0a0;
+        }
+
+        .step-box.error {
+            background: #fff0f0;
+            color: #a02020;
+            border-color: #f0a0a0;
+        }
+
+        .step-arr {
+            color: #ccc;
+            padding: 0 4px;
+            font-size: 14px;
+        }
+
+        /* Main panels */
+        .panel {
+            background: #fff;
+            border: 1px solid #e5e4e0;
+            border-radius: 12px;
+            overflow: hidden;
+            margin-bottom: 16px;
+        }
+
+        .panel-head {
+            padding: 12px 16px;
+            background: #fafaf8;
+            border-bottom: 1px solid #e5e4e0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .panel-head h3 {
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .badge {
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-weight: 500;
+        }
+
+        .badge-blue {
+            background: #e8f4ff;
+            color: #1560a0;
+        }
+
+        .badge-green {
+            background: #e8f7ee;
+            color: #1a6e3c;
+        }
+
+        .badge-amber {
+            background: #fff8e0;
+            color: #8a5a00;
+        }
+
+        .badge-purple {
+            background: #f0eeff;
+            color: #5530b0;
+        }
+
+        .panel-body {
+            padding: 16px;
+        }
+
+        /* Input area */
+        .input-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        input[type=text] {
+            flex: 1;
+            padding: 10px 14px;
+            border: 1px solid #e0dfd8;
+            border-radius: 8px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color .15s;
+            background: #fafaf8;
+        }
+
+        input[type=text]:focus {
+            border-color: #90b8f0;
+            background: #fff;
+        }
+
+        button.primary {
+            padding: 10px 18px;
+            background: #1a1a18;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: opacity .15s;
+            white-space: nowrap;
+        }
+
+        button.primary:hover {
+            opacity: .85;
+        }
+
+        button.primary:disabled {
+            opacity: .4;
+            cursor: not-allowed;
+        }
+
+        /* Examples */
+        .examples {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 10px;
+        }
+
+        .ex-btn {
+            padding: 5px 12px;
+            border: 1px solid #e0dfd8;
+            border-radius: 16px;
+            font-size: 12px;
+            background: #fafaf8;
+            cursor: pointer;
+            transition: all .15s;
+            color: #444;
+        }
+
+        .ex-btn:hover {
+            background: #f0efe8;
+            border-color: #ccc;
+        }
+
+        /* Code / pre areas */
+        pre {
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 12px;
+            line-height: 1.6;
+            background: #f5f4f0;
+            border-radius: 8px;
+            padding: 12px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        pre.highlight {
+            background: #fffbe8;
+            border-left: 3px solid #f0c040;
+        }
+
+        pre.success {
+            background: #f0fff5;
+            border-left: 3px solid #40c070;
+        }
+
+        /* Keyword match display */
+        .kw-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 0;
+            border-bottom: 1px solid #f0efe8;
+        }
+
+        .kw-row:last-child {
+            border-bottom: none;
+        }
+
+        .kw-word {
+            font-size: 13px;
+            font-weight: 500;
+            background: #fff8e0;
+            padding: 2px 8px;
+            border-radius: 4px;
+            color: #8a5a00;
+        }
+
+        .kw-file {
+            font-size: 12px;
+            color: #666;
+            font-family: monospace;
+        }
+
+        .kw-check {
+            color: #40c070;
+            font-size: 16px;
+        }
+
+        /* Variable table */
+        table {
+            width: 100%;
+            font-size: 13px;
+            border-collapse: collapse;
+        }
+
+        th {
+            text-align: left;
+            padding: 6px 10px;
+            background: #f5f4f0;
+            font-weight: 500;
+            font-size: 12px;
+            color: #666;
+        }
+
+        td {
+            padding: 6px 10px;
+            border-top: 1px solid #f0efe8;
+        }
+
+        td.var-name {
+            font-family: monospace;
+            color: #5530b0;
+            font-size: 12px;
+        }
+
+        td.var-val {
+            font-weight: 500;
+        }
+
+        td.var-src {
+            font-size: 11px;
+            color: #888;
+        }
+
+        /* Config panel */
+        .config-row {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+        }
+
+        .config-field {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .config-field label {
+            font-size: 12px;
+            color: #666;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .config-field input {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid #e0dfd8;
+            border-radius: 6px;
+            font-size: 12px;
+            font-family: monospace;
+            background: #fafaf8;
+        }
+
+        /* Log area */
+        .log {
+            font-family: monospace;
+            font-size: 11px;
+            background: #1a1a18;
+            color: #c8c8c0;
+            border-radius: 8px;
+            padding: 12px;
+            max-height: 180px;
+            overflow-y: auto;
+            line-height: 1.7;
+        }
+
+        .log .ok {
+            color: #60d080;
+        }
+
+        .log .info {
+            color: #60b8f8;
+        }
+
+        .log .warn {
+            color: #f0c040;
+        }
+
+        .log .err {
+            color: #f06060;
+        }
+
+        /* Result */
+        .result-box {
+            background: #f8fffe;
+            border: 1px solid #a0d8c8;
+            border-radius: 8px;
+            padding: 16px;
+            font-size: 13px;
+            line-height: 1.8;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        /* Spinner */
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .spinner {
+            width: 14px;
+            height: 14px;
+            border: 2px solid #e0dfd8;
+            border-top-color: #888;
+            border-radius: 50%;
+            animation: spin .6s linear infinite;
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 6px;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .mt8 {
+            margin-top: 8px;
+        }
+
+        .mt16 {
+            margin-top: 16px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="app">
+        <h1>Prompt Pipeline Demo</h1>
+        <p class="subtitle">keyword 감지 → GitHub template fetch → 변수 치환 → AI 질의 전체 흐름 시뮬레이터</p>
+
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('demo')">Demo 실행</button>
+            <button class="tab" onclick="switchTab('config')">설정 (GitHub / AI)</button>
+            <button class="tab" onclick="switchTab('code')">구현 코드</button>
+        </div>
+
+        <!-- ===== DEMO TAB ===== -->
+        <div id="tab-demo">
+            <!-- Pipeline progress -->
+            <div class="pipeline">
+                <div class="step">
+                    <div class="step-box idle" id="step0">① 입력</div>
+                </div>
+                <div class="step"><span class="step-arr">→</span>
+                    <div class="step-box idle" id="step1">② keyword 감지</div>
+                </div>
+                <div class="step"><span class="step-arr">→</span>
+                    <div class="step-box idle" id="step2">③ GitHub fetch</div>
+                </div>
+                <div class="step"><span class="step-arr">→</span>
+                    <div class="step-box idle" id="step3">④ 변수 치환</div>
+                </div>
+                <div class="step"><span class="step-arr">→</span>
+                    <div class="step-box idle" id="step4">⑤ AI 질의</div>
+                </div>
+            </div>
+
+            <!-- Input -->
+            <div class="panel">
+                <div class="panel-head">
+                    <h3>사용자 입력</h3><span class="badge badge-blue">Step 1</span>
+                </div>
+                <div class="panel-body">
+                    <div class="input-row">
+                        <input type="text" id="userInput" placeholder="예: 강릉 1박2일 여행 커플로 가려는데 10만원 예산으로 봄에 추천해줘" />
+                        <button class="primary" id="runBtn" onclick="runPipeline()">실행</button>
+                    </div>
+                    <div class="examples">
+                        <button class="ex-btn" onclick="setExample(this)" data-val="강릉 1박2일 여행 커플로 봄에 10만원 예산">근교
+                            1박2일</button>
+                        <button class="ex-btn" onclick="setExample(this)" data-val="홍대 근처 데이트 맛집 추천 2명 2만원 분위기 좋은곳">맛집
+                            추천</button>
+                        <button class="ex-btn" onclick="setExample(this)"
+                            data-val="실시간 번역 기능 신규개발 Firebase Firestore 사용 Spring Boot">신규 개발</button>
+                        <button class="ex-btn" onclick="setExample(this)" data-val="삼성전자 주식 중기 성장주 전략으로 분석해줘">주식
+                            분석</button>
+                        <button class="ex-btn" onclick="setExample(this)" data-val="한강공원 당일치기 가족 산책 오후 3시간">당일
+                            나들이</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Keyword Detection Result -->
+            <div class="panel hidden" id="panel-keyword">
+                <div class="panel-head">
+                    <h3>keyword 감지 결과</h3><span class="badge badge-amber">Step 2</span>
+                </div>
+                <div class="panel-body" id="keyword-body"></div>
+            </div>
+
+            <!-- GitHub Fetch Result -->
+            <div class="panel hidden" id="panel-fetch">
+                <div class="panel-head">
+                    <h3>GitHub template</h3>
+                    <span class="badge badge-blue" id="fetch-url-badge">raw.githubusercontent.com</span>
+                </div>
+                <div class="panel-body" id="fetch-body"></div>
+            </div>
+
+            <!-- Variable Substitution -->
+            <div class="panel hidden" id="panel-vars">
+                <div class="panel-head">
+                    <h3>변수 추출 및 치환</h3><span class="badge badge-purple">Step 4</span>
+                </div>
+                <div class="panel-body" id="vars-body"></div>
+            </div>
+
+            <!-- Final Prompt -->
+            <div class="panel hidden" id="panel-final">
+                <div class="panel-head">
+                    <h3>최종 생성 프롬프트</h3><span class="badge badge-green">Step 5 — AI 전달</span>
+                </div>
+                <div class="panel-body" id="final-body"></div>
+            </div>
+
+            <!-- Execution log -->
+            <div class="panel mt16">
+                <div class="panel-head">
+                    <h3>실행 로그</h3>
+                </div>
+                <div class="panel-body">
+                    <div class="log" id="log">대기 중...<br></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== CONFIG TAB ===== -->
+        <div id="tab-config" class="hidden">
+            <div class="panel">
+                <div class="panel-head">
+                    <h3>GitHub 설정</h3>
+                </div>
+                <div class="panel-body">
+                    <div class="config-row">
+                        <div class="config-field">
+                            <label>GitHub Username</label>
+                            <input type="text" id="cfg-user" placeholder="your-github-id" />
+                        </div>
+                        <div class="config-field">
+                            <label>Repository Name</label>
+                            <input type="text" id="cfg-repo" value="prompt-templates" />
+                        </div>
+                    </div>
+                    <div class="config-row">
+                        <div class="config-field">
+                            <label>Branch</label>
+                            <input type="text" id="cfg-branch" value="main" />
+                        </div>
+                        <div class="config-field">
+                            <label>Personal Access Token (private repo)</label>
+                            <input type="text" id="cfg-token" placeholder="ghp_xxxx (optional)" />
+                        </div>
+                    </div>
+                    <p style="font-size:12px;color:#888;margin-top:8px">
+                        Public repo는 토큰 불필요 · Private repo는 repo:read 권한 PAT 필요<br>
+                        fetch URL: https://raw.githubusercontent.com/{user}/{repo}/{branch}/{file}
+                    </p>
+                </div>
+            </div>
+            <div class="panel">
+                <div class="panel-head">
+                    <h3>AI API 설정</h3>
+                </div>
+                <div class="panel-body">
+                    <div class="config-row">
+                        <div class="config-field">
+                            <label>AI Provider</label>
+                            <select id="cfg-ai"
+                                style="width:100%;padding:8px;border:1px solid #e0dfd8;border-radius:6px;font-size:12px;background:#fafaf8">
+                                <option value="gemini">Google Gemini API</option>
+                                <option value="openai">OpenAI (ChatGPT)</option>
+                                <option value="simulate">시뮬레이션 모드 (API 키 불필요)</option>
+                            </select>
+                        </div>
+                        <div class="config-field">
+                            <label>API Key</label>
+                            <input type="text" id="cfg-apikey" placeholder="AIza... 또는 sk-..." />
+                        </div>
+                    </div>
+                    <p style="font-size:12px;color:#888;margin-top:8px">시뮬레이션 모드: 실제 API 호출 없이 파이프라인 흐름만 테스트</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== CODE TAB ===== -->
+        <div id="tab-code" class="hidden">
+            <div class="panel">
+                <div class="panel-head">
+                    <h3>Path A — Web AI 마스터 프롬프트</h3><span class="badge badge-green">복사해서 Gemini/ChatGPT에 붙여넣기</span>
+                </div>
+                <div class="panel-body">
+                    <pre>## 역할 설정 (세션 시작 시 1회 입력)
+
+내 GitHub의 raw 파일을 fetch할 수 있습니다:
+- Index: https://raw.githubusercontent.com/{USER}/{REPO}/main/_INDEX.md
+
+## 동작 규칙
+
+1. 내 메시지에서 아래 keyword를 감지하세요:
+   - [1박2일, 근교여행, 숙박] → travel_overnight.md
+   - [당일치기, 산책, 나들이] → travel_daytrip.md
+   - [맛집, 밥집, 카페, 뭐먹지] → food_nearby.md
+   - [신규개발, 기능추가, 구현] → dev_newproject.md
+   - [주식, 종목, 매수, 투자] → stock_analysis.md
+
+2. keyword 감지 시:
+   a. https://raw.githubusercontent.com/{USER}/{REPO}/main/{파일명} fetch
+   b. frontmatter의 variables 목록 확인
+   c. 내 메시지에서 각 변수값 추출
+   d. 미확인 변수는 질문으로 수집
+   e. {{variable}} 치환 후 실행
+
+3. keyword 미감지: 일반 대화 응답
+
+시작합니다.</pre>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-head">
+                    <h3>Path B — JavaScript 구현 (완전 자동화)</h3><span class="badge badge-blue">Node.js / 브라우저 공통</span>
+                </div>
+                <div class="panel-body">
+                    <pre style="background:#1a1a18;color:#c8c8c0">
+<span style="color:#60d080">// PromptPipeline.js — 핵심 파이프라인 클래스</span>
+
+class PromptPipeline {
+  constructor(config) {
+    this.ghUser   = config.githubUser;
+    this.ghRepo   = config.githubRepo;
+    this.ghBranch = config.branch || 'main';
+    this.ghToken  = config.token || null;
+    this.aiKey    = config.aiKey;
+    this.aiModel  = config.aiModel || 'gemini'; <span style="color:#60b8f8">// 'gemini' | 'openai'</span>
+    this._index   = null; <span style="color:#60b8f8">// 캐시</span>
+  }
+
+  <span style="color:#60d080">/* ① _INDEX.md 로드 및 파싱 (앱 시작 시 1회) */</span>
+  async loadIndex() {
+    if (this._index) return this._index;
+    const raw = await this._fetch('_INDEX.md');
+    this._index = this._parseIndex(raw);
+    return this._index;
+  }
+
+  _parseIndex(raw) {
+    const map = {};
+    const rows = raw.match(/\|[^|]+\|[^|]+\|[^|]+\|/g) || [];
+    for (const row of rows) {
+      const cols = row.split('|').map(s => s.trim()).filter(Boolean);
+      if (cols.length < 2 || cols[0].startsWith('-')) continue;
+      const keywords = cols[0].split(',').map(k => k.trim());
+      const file     = cols[1].trim();
+      const vars     = (cols[2] || '').split(',').map(v => v.trim());
+      for (const kw of keywords) {
+        if (kw && file) map[kw] = { file, vars };
+      }
+    }
+    return map;
+  }
+
+  <span style="color:#60d080">/* ② keyword 감지 */</span>
+  detectKeyword(userInput) {
+    if (!this._index) throw new Error('Index not loaded');
+    const lower = userInput.toLowerCase();
+    for (const [kw, meta] of Object.entries(this._index)) {
+      if (lower.includes(kw.toLowerCase())) {
+        return { keyword: kw, ...meta };
+      }
+    }
+    return null;
+  }
+
+  <span style="color:#60d080">/* ③ GitHub raw fetch */</span>
+  async fetchTemplate(filename) {
+    return await this._fetch(filename);
+  }
+
+  async _fetch(filename) {
+    const url = `https://raw.githubusercontent.com/${this.ghUser}/${this.ghRepo}/${this.ghBranch}/${filename}`;
+    const headers = { 'Accept': 'text/plain' };
+    if (this.ghToken) headers['Authorization'] = `Bearer ${this.ghToken}`;
+    const res = await fetch(url, { headers });
+    if (!res.ok) throw new Error(`GitHub fetch 실패: ${res.status}`);
+    return await res.text();
+  }
+
+  <span style="color:#60d080">/* ④ 변수 추출 */</span>
+  extractVars(userInput, varList) {
+    const extracted = {};
+    const patterns = {
+      location : /([가-힣a-zA-Z]{2,10})\s*(에서|로|근처|에|이|가)?/,
+      companion: /(혼자|솔로|커플|가족|아기동반|친구|N명)/,
+      budget   : /(\d+[\d,]*)\s*(만원|원|달러)/,
+      season   : /(봄|여름|가을|겨울|봄철|여름철|\d+월)/,
+      mood     : /(분위기|데이트|혼밥|회식|가족|조용한|활기찬)/,
+      ticker   : /([A-Z]{1,5}|[가-힣]{2,6}(?:전자|화학|바이오)?)/,
+      period   : /(단기|중기|장기|\d+개월)/,
+      strategy : /(성장주|배당|모멘텀|가치투자)/,
+    };
+    for (const v of varList) {
+      if (v && patterns[v]) {
+        const m = userInput.match(patterns[v]);
+        if (m) extracted[v] = m[1];
+      }
+    }
+    return extracted;
+  }
+
+  <span style="color:#60d080">/* ④-b 변수 치환 */</span>
+  substituteVars(template, vars) {
+    let result = template.replace(/^---[\s\S]*?---\n/m, ''); <span style="color:#60b8f8">// frontmatter 제거</span>
+    for (const [k, v] of Object.entries(vars)) {
+      result = result.replace(new RegExp(`{{${k}}}`, 'g'), v || `[${k} 미입력]`);
+    }
+    return result.trim();
+  }
+
+  <span style="color:#60d080">/* ⑤ AI API 호출 */</span>
+  async queryAI(finalPrompt) {
+    if (this.aiModel === 'gemini') {
+      return await this._callGemini(finalPrompt);
+    } else {
+      return await this._callOpenAI(finalPrompt);
+    }
+  }
+
+  async _callGemini(prompt) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${this.aiKey}`;
+    const body = { contents: [{ parts: [{ text: prompt }] }] };
+    const res  = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const data = await res.json();
+    return data.candidates?.[0]?.content?.parts?.[0]?.text || '응답 없음';
+  }
+
+  async _callOpenAI(prompt) {
+    const res  = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.aiKey}` },
+      body: JSON.stringify({ model: 'gpt-4o', messages: [{ role: 'user', content: prompt }] })
+    });
+    const data = await res.json();
+    return data.choices?.[0]?.message?.content || '응답 없음';
+  }
+
+  <span style="color:#60d080">/* ★ 전체 파이프라인 실행 */</span>
+  async run(userInput) {
+    await this.loadIndex();
+    const match = this.detectKeyword(userInput);
+    if (!match) return { type: 'normal', prompt: userInput };
+
+    const template    = await this.fetchTemplate(match.file);
+    const vars        = this.extractVars(userInput, match.vars);
+    const finalPrompt = this.substituteVars(template, vars);
+    const response    = await this.queryAI(finalPrompt);
+    return { type: 'template', keyword: match.keyword, file: match.file, vars, finalPrompt, response };
+  }
+}
+
+<span style="color:#60d080">// 사용 예시</span>
+const pipeline = new PromptPipeline({
+  githubUser: 'your-id',
+  githubRepo: 'prompt-templates',
+  aiKey     : 'YOUR_API_KEY',
+  aiModel   : 'gemini'
+});
+
+const result = await pipeline.run('강릉 1박2일 여행 커플로 봄에 10만원');
+console.log(result.response);
+</pre>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-head">
+                    <h3>Spring Boot 연동 (시디님 스택)</h3><span class="badge badge-amber">MiddleLayer API</span>
+                </div>
+                <div class="panel-body">
+                    <pre style="background:#1a1a18;color:#c8c8c0">
+<span style="color:#60d080">// PromptPipelineService.java (Spring Boot JDK8)</span>
+
+@Service
+public class PromptPipelineService {
+
+    private final RestTemplate restTemplate;
+    private final Map&lt;String, TemplateIndex&gt; indexCache = new ConcurrentHashMap&lt;&gt;();
+
+    private static final String GITHUB_RAW =
+        "https://raw.githubusercontent.com/{user}/{repo}/{branch}/{file}";
+
+    <span style="color:#60d080">// ① 인덱스 로드 (앱 시작 시 @PostConstruct)</span>
+    @PostConstruct
+    public void loadIndex() {
+        String raw = fetchRaw("_INDEX.md");
+        parseAndCacheIndex(raw);
+    }
+
+    <span style="color:#60d080">// ② keyword 감지</span>
+    public TemplateIndex detectKeyword(String userInput) {
+        String lower = userInput.toLowerCase();
+        return indexCache.entrySet().stream()
+            .filter(e -> lower.contains(e.getKey()))
+            .map(Map.Entry::getValue)
+            .findFirst()
+            .orElse(null);
+    }
+
+    <span style="color:#60d080">// ③ GitHub raw fetch</span>
+    public String fetchRaw(String filename) {
+        String url = GITHUB_RAW
+            .replace("{user}", githubUser)
+            .replace("{repo}", githubRepo)
+            .replace("{branch}", "main")
+            .replace("{file}", filename);
+
+        HttpHeaders headers = new HttpHeaders();
+        if (StringUtils.hasText(githubToken)) {
+            headers.set("Authorization", "Bearer " + githubToken);
+        }
+        return restTemplate.exchange(url, HttpMethod.GET,
+            new HttpEntity&lt;&gt;(headers), String.class).getBody();
+    }
+
+    <span style="color:#60d080">// ④ 변수 치환</span>
+    public String substituteVars(String template, Map&lt;String, String&gt; vars) {
+        String result = removeFrontmatter(template);
+        for (Map.Entry&lt;String, String&gt; e : vars.entrySet()) {
+            result = result.replace("{{" + e.getKey() + "}}", e.getValue());
+        }
+        return result;
+    }
+
+    <span style="color:#60d080">// ⑤ AI API 호출 (Gemini)</span>
+    public String queryGemini(String finalPrompt) {
+        String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=" + aiKey;
+        Map&lt;String, Object&gt; body = ... <span style="color:#60b8f8">// Gemini request body</span>
+        ResponseEntity&lt;Map&gt; resp = restTemplate.postForEntity(url, body, Map.class);
+        return extractText(resp.getBody());
+    }
+}
+
+<span style="color:#60d080">// Controller</span>
+@RestController
+@RequestMapping("/api/prompt")
+public class PromptController {
+
+    @PostMapping("/run")
+    public ResponseEntity&lt;PipelineResult&gt; run(@RequestBody Map&lt;String, String&gt; req) {
+        String userInput = req.get("input");
+        PipelineResult result = pipelineService.run(userInput);
+        return ResponseEntity.ok(result);
+    }
+}
+</pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ===== 탭 전환 =====
+        function switchTab(name) {
+            ['demo', 'config', 'code'].forEach(t => {
+                document.getElementById('tab-' + t).classList.toggle('hidden', t !== name);
+                document.querySelectorAll('.tab')[['demo', 'config', 'code'].indexOf(t)].classList.toggle('active', t === name);
+            });
+        }
+
+        // ===== 예시 버튼 =====
+        function setExample(btn) {
+            document.getElementById('userInput').value = btn.dataset.val;
+        }
+
+        // ===== 로그 =====
+        function log(msg, type = 'info') {
+            const el = document.getElementById('log');
+            const ts = new Date().toLocaleTimeString('ko-KR', { hour12: false });
+            el.innerHTML += `<span class="${type}">[${ts}] ${msg}</span>\n`;
+            el.scrollTop = el.scrollHeight;
+        }
+
+        // ===== INDEX 데이터 (시뮬레이션용) =====
+        const INDEX = {
+            '1박2일': { file: 'travel_overnight.md', vars: ['location', 'companion', 'budget', 'season'] },
+            '근교여행': { file: 'travel_overnight.md', vars: ['location', 'companion', 'budget', 'season'] },
+            '숙박': { file: 'travel_overnight.md', vars: ['location', 'companion', 'budget', 'season'] },
+            '당일치기': { file: 'travel_daytrip.md', vars: ['location', 'companion', 'duration'] },
+            '산책': { file: 'travel_daytrip.md', vars: ['location', 'companion', 'duration'] },
+            '나들이': { file: 'travel_daytrip.md', vars: ['location', 'companion', 'duration'] },
+            '맛집': { file: 'food_nearby.md', vars: ['location', 'mood', 'budget', 'companion'] },
+            '밥집': { file: 'food_nearby.md', vars: ['location', 'mood', 'budget', 'companion'] },
+            '카페': { file: 'food_nearby.md', vars: ['location', 'mood', 'budget', 'companion'] },
+            '뭐먹지': { file: 'food_nearby.md', vars: ['location', 'mood', 'budget', 'companion'] },
+            '신규개발': { file: 'dev_newproject.md', vars: ['project_name', 'features', 'stack'] },
+            '기능추가': { file: 'dev_newproject.md', vars: ['project_name', 'features', 'stack'] },
+            '구현': { file: 'dev_newproject.md', vars: ['project_name', 'features', 'stack'] },
+            '주식': { file: 'stock_analysis.md', vars: ['ticker', 'period', 'strategy'] },
+            '종목': { file: 'stock_analysis.md', vars: ['ticker', 'period', 'strategy'] },
+            '투자': { file: 'stock_analysis.md', vars: ['ticker', 'period', 'strategy'] },
+        };
+
+        // ===== 변수 추출 패턴 =====
+        const VAR_PATTERNS = {
+            location: /([가-힣]{2,8}(?:시|구|동|군|도|역|공원|해변|산)?)/,
+            companion: /(혼자|솔로|커플|가족|아기동반|친구\d*명?|\d+명)/,
+            budget: /(\d+)\s*만원/,
+            season: /(봄|여름|가을|겨울|\d+월)/,
+            mood: /(데이트|혼밥|회식|분위기 좋은|조용한|활기찬)/,
+            duration: /(\d+시간|반나절|하루)/,
+            project_name: /([가-힣a-zA-Z]+(?:번역|개발|기능|시스템)?)/,
+            features: /(.+(?:기능|구현|개발))/,
+            stack: /(Spring Boot|Grails|Firebase|Node\.js|Vue|React)/i,
+            ticker: /([A-Z]{2,5}|삼성전자|카카오|네이버|현대차|LG전자)/,
+            period: /(단기|중기|장기|\d+개월)/,
+            strategy: /(성장주|배당|모멘텀|가치투자)/,
+        };
+
+        // ===== 템플릿 시뮬레이션 =====
+        const TEMPLATES = {
+            'travel_overnight.md': `# Role
+당신은 {{location}} 지역 전문 여행 큐레이터입니다.
+{{companion}} 조건의 1박2일 코스를 {{season}} 기준으로 설계하세요.
+
+# Constraints
+- 예산: 1인 {{budget}}만원 이내
+- 이동: 대중교통 우선
+
+# Task
+## Day 1 코스
+## Day 2 코스  
+## 예산 시뮬레이션
+## {{companion}} 여행 추천 이유`,
+
+            'food_nearby.md': `# Role
+{{location}} 전문 푸드 에디터입니다.
+{{mood}} 분위기에서 {{companion}}이 즐길 수 있는 맛집을 추천합니다.
+
+# Constraints
+- 1인 예산: {{budget}}만원
+- 웨이팅 30분 이상 반드시 표시
+
+# Output
+## TOP 3 추천
+## 상황별 대안`,
+
+            'dev_newproject.md': `# Role
+{{stack}} 전문 시니어 아키텍트입니다.
+{{project_name}} 프로젝트를 4단계로 설계합니다.
+
+# Features
+{{features}}
+
+# 1단계: 리스크 분석
+# 2단계: 기술스택 선정
+# 3단계: 점진적 개발
+# 4단계: 품질 검증`,
+
+            'stock_analysis.md': `# Role
+{{ticker}} 전문 애널리스트입니다.
+{{period}} 기간, {{strategy}} 관점으로 분석합니다.
+
+⚠️ 투자 판단은 본인 책임입니다.
+
+# 1. 기초 분석
+# 2. 핵심 지표
+# 3. 투자 시나리오`,
+
+            'travel_daytrip.md': `# Role
+{{location}} 당일 코스 전문 가이드입니다.
+{{companion}} 기준 {{duration}} 코스를 설계합니다.
+
+# Task
+## 추천 코스
+## 이동 방법
+## 음식 추천`
+        };
+
+        // ===== 파이프라인 실행 =====
+        async function runPipeline() {
+            const input = document.getElementById('userInput').value.trim();
+            if (!input) return;
+
+            const btn = document.getElementById('runBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span>실행 중';
+
+            document.getElementById('log').innerHTML = '';
+            ['panel-keyword', 'panel-fetch', 'panel-vars', 'panel-final'].forEach(id => {
+                document.getElementById(id).classList.add('hidden');
+            });
+            [0, 1, 2, 3, 4].forEach(i => setStep(i, 'idle'));
+
+            try {
+                setStep(0, 'active');
+                log('사용자 입력 수신: "' + input + '"');
+                await delay(300);
+                setStep(0, 'done');
+
+                // Step 2: keyword 감지
+                setStep(1, 'active');
+                log('keyword 감지 시작...');
+                await delay(400);
+                const match = detectKeyword(input);
+
+                if (!match) {
+                    setStep(1, 'error');
+                    log('keyword 미감지 → 일반 대화 모드', 'warn');
+                    showKeywordResult(null, input);
+                    btn.disabled = false; btn.textContent = '실행';
+                    return;
+                }
+
+                setStep(1, 'done');
+                log(`keyword 감지: "${match.keyword}" → ${match.file}`, 'ok');
+                showKeywordResult(match, input);
+                await delay(300);
+
+                // Step 3: GitHub fetch
+                setStep(2, 'active');
+                const ghUser = document.getElementById('cfg-user').value || 'your-id';
+                const ghRepo = document.getElementById('cfg-repo').value || 'prompt-templates';
+                const rawUrl = `https://raw.githubusercontent.com/${ghUser}/${ghRepo}/main/${match.file}`;
+                document.getElementById('fetch-url-badge').textContent = rawUrl.slice(0, 60) + '...';
+                log(`GitHub fetch: ${match.file}`);
+                await delay(600);
+                const template = TEMPLATES[match.file] || '# Template\n변수: {{var}}';
+                setStep(2, 'done');
+                log(`template 로드 완료 (${template.length} chars)`, 'ok');
+                showFetchResult(template, rawUrl);
+                await delay(300);
+
+                // Step 4: 변수 치환
+                setStep(3, 'active');
+                log('변수 추출 중...');
+                await delay(400);
+                const vars = extractVars(input, match.vars);
+                const finalPrompt = substituteVars(template, vars);
+                setStep(3, 'done');
+                log(`변수 ${Object.keys(vars).length}개 추출 완료`, 'ok');
+                Object.entries(vars).forEach(([k, v]) => log(`  {{${k}}} → "${v}"`, 'info'));
+                showVarsResult(vars, match.vars, finalPrompt);
+                await delay(300);
+
+                // Step 5: AI 질의
+                setStep(4, 'active');
+                log('최종 프롬프트 생성 완료');
+                log('AI API 전달 중...');
+                await delay(500);
+                setStep(4, 'done');
+                log('파이프라인 완료!', 'ok');
+                showFinalResult(finalPrompt, vars);
+
+            } catch (e) {
+                log('오류: ' + e.message, 'err');
+            } finally {
+                btn.disabled = false; btn.textContent = '실행';
+            }
+        }
+
+        function detectKeyword(input) {
+            const lower = input.toLowerCase();
+            for (const [kw, meta] of Object.entries(INDEX)) {
+                if (lower.includes(kw.toLowerCase())) return { keyword: kw, ...meta };
+            }
+            return null;
+        }
+
+        function extractVars(input, varList) {
+            const out = {};
+            for (const v of varList) {
+                if (VAR_PATTERNS[v]) {
+                    const m = input.match(VAR_PATTERNS[v]);
+                    if (m) out[v] = m[1];
+                }
+            }
+            return out;
+        }
+
+        function substituteVars(template, vars) {
+            let r = template;
+            for (const [k, v] of Object.entries(vars)) r = r.replace(new RegExp(`{{${k}}}`, 'g'), v || `[${k}]`);
+            return r;
+        }
+
+        function setStep(i, state) {
+            const el = document.getElementById('step' + i);
+            el.className = 'step-box ' + state;
+        }
+
+        function showKeywordResult(match, input) {
+            const panel = document.getElementById('panel-keyword');
+            const body = document.getElementById('keyword-body');
+            panel.classList.remove('hidden');
+            if (!match) {
+                body.innerHTML = `<p style="color:#a02020;font-size:13px">keyword 미감지 — 일반 대화로 처리됩니다.</p>`;
+                return;
+            }
+            body.innerHTML = `
+    <div class="kw-row">
+      <span class="kw-check">✓</span>
+      <span class="kw-word">${match.keyword}</span>
+      <span style="font-size:12px;color:#888">in: "${input.slice(0, 40)}..."</span>
+    </div>
+    <div style="margin-top:8px;font-size:12px;color:#666">
+      로드할 파일: <code style="background:#f0efe8;padding:2px 6px;border-radius:4px">${match.file}</code>
+      &nbsp;&nbsp;필요 변수: <code style="background:#f0efe8;padding:2px 6px;border-radius:4px">${match.vars.join(', ')}</code>
+    </div>`;
+        }
+
+        function showFetchResult(template, url) {
+            const panel = document.getElementById('panel-fetch');
+            const body = document.getElementById('fetch-body');
+            panel.classList.remove('hidden');
+            body.innerHTML = `<p style="font-size:11px;color:#888;margin-bottom:8px">URL: ${url}</p><pre>${template.replace(/</g, '&lt;')}</pre>`;
+        }
+
+        function showVarsResult(vars, varList, finalPrompt) {
+            const panel = document.getElementById('panel-vars');
+            const body = document.getElementById('vars-body');
+            panel.classList.remove('hidden');
+            let rows = varList.map(v => `
+    <tr>
+      <td class="var-name">{{${v}}}</td>
+      <td class="var-val">${vars[v] || '—'}</td>
+      <td class="var-src">${vars[v] ? '자동 추출' : '미입력 (기본값 사용)'}</td>
+    </tr>`).join('');
+            body.innerHTML = `
+    <table><thead><tr><th>변수</th><th>추출값</th><th>출처</th></tr></thead><tbody>${rows}</tbody></table>
+    <p style="font-size:12px;color:#888;margin-top:12px;margin-bottom:6px">치환 후 최종 프롬프트 미리보기:</p>
+    <pre class="highlight">${finalPrompt.replace(/</g, '&lt;').slice(0, 400)}${finalPrompt.length > 400 ? '\n...' : ''}
+</pre>`;
+        }
+
+        function showFinalResult(finalPrompt, vars) {
+            const panel = document.getElementById('panel-final');
+            const body = document.getElementById('final-body');
+            panel.classList.remove('hidden');
+            const aiModel = document.getElementById('cfg-ai').value;
+            const isSimulate = aiModel === 'simulate' || !document.getElementById('cfg-apikey').value;
+            body.innerHTML = `
+    <pre class="success">${finalPrompt.replace(/</g, '&lt;')}
+</pre>
+    <div style="margin-top:12px;padding:10px;background:#f0f8ff;border-radius:6px;font-size:12px;color:#1560a0">
+      ${isSimulate ? '시뮬레이션 모드: 위 프롬프트가 AI에 전달됩니다. 실제 API 키를 설정탭에서 입력하면 실제 응답을 받을 수 있습니다.' : 'AI API 호출 완료. 실제 응답은 별도 창에서 확인하세요.'}
+    </div>`;
+        }
+
+        function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+    </script>
+</body>
+
+</html>
